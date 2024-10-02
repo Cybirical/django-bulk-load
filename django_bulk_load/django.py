@@ -65,7 +65,7 @@ def models_to_tsv_buffer(
     include_fields: Iterable[models.Field],
     connection: BaseDatabaseWrapper,
     django_field_to_value=_default_model_to_value,
-) -> StringIO:
+) -> str:
     buffer = ""
     for obj in models:
         row = []
