@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
+import json
 from django.db import connection
 
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django_bulk_load import bulk_upsert_models, generate_greater_than_condition
 from django_bulk_load.django import models_to_csv_param_buffer
 from .test_project.models import (
@@ -597,18 +598,39 @@ class E2ETestBulkUpsertModels(TestCase):
         saved_model2 = TestComplexModel.objects.get(integer_field=3)
         self.assertEqual(saved_model2.string_field, "c")
 
+class TransactionTests(TransactionTestCase):
     def test_copy_from_with_jsonfield_works_as_expected(self):
         # perform a COPY from state with a JSONField
-        foreign = TestForeignKeyModel()
-        foreign.save()
-        foreign_2 = TestForeignKeyModel()
-        foreign_2.save()
-        io_string = "1,a,{},{}\n2,b,{},{}"
-        params = [{"a": "b"}, foreign.id,{"c": "d"}, foreign_2.id]
+        foreign = TestForeignKeyModel.objects.create()
+        foreign_2 = TestForeignKeyModel.objects.create()
+        data = {"a": "b"}
+        json_string = json.dumps(data)
+        escaped_string = json_string.replace('"', '""')
+        csv_safe_json = f"\"{escaped_string}\""
+
+        data_2 = {"c": "d"}
+        json_string_2 = json.dumps(data_2)
+        escaped_string_2 = json_string_2.replace('"', '""')
+        csv_safe_json_2 = f"\"{escaped_string_2}\""
+        io_string = "1\t1\ta\t{}\t{}\n2\t2\tb\t{}\t{}"
+        params = [
+            csv_safe_json,
+            foreign.id,
+            csv_safe_json_2,
+            foreign_2.id
+        ]
+
+        formatted_string = io_string.format(*params)
 
         with connection.cursor() as cursor:
-            cursor.copy(
-                "COPY test_project_testcomplexmodel (integer_field, string_field, json_field, test_foreign_id) FROM STDIN WITH CSV",
-                io_string.format(*params))
-            
-        # csv_io, params = models_to_csv_param_buffer([TestComplexModel(integer_field=1, string_field="a", json_field={}, test_foreign=foreign), TestComplexModel(integer_field=2, string_field="b", json_field={"c": "d"}, test_foreign=foreign_2)], ["integer_field", "string_field", "json_field", "test_foreign_id"], connection)
+            with cursor.copy("COPY test_project_testcomplexmodel (id, integer_field, string_field, json_field, test_foreign_id) FROM STDIN WITH CSV DELIMITER '\t'") as writer:
+                writer.write(formatted_string)
+
+        # query the database to ensure the data was copied correctly
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT id, integer_field, string_field, json_field, test_foreign_id FROM test_project_testcomplexmodel")
+            result = cursor.fetchall()
+            self.assertEqual(result, [
+                (1, 1, "a", json.dumps({'a': 'b'}), foreign.id),
+                (2, 2, "b", json.dumps({'c': 'd'}), foreign_2.id)
+            ])
