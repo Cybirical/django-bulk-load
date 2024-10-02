@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
+from django.db import connection
 
 from django.test import TestCase
 from django_bulk_load import bulk_upsert_models, generate_greater_than_condition
+from django_bulk_load.django import models_to_csv_param_buffer
 from .test_project.models import (
     TestComplexModel,
     TestForeignKeyModel,
@@ -594,3 +596,19 @@ class E2ETestBulkUpsertModels(TestCase):
         # Second model should not be updated because 2 < 3
         saved_model2 = TestComplexModel.objects.get(integer_field=3)
         self.assertEqual(saved_model2.string_field, "c")
+
+    def test_copy_from_with_jsonfield_works_as_expected(self):
+        # perform a COPY from state with a JSONField
+        foreign = TestForeignKeyModel()
+        foreign.save()
+        foreign_2 = TestForeignKeyModel()
+        foreign_2.save()
+        io_string = "1,a,{},{}\n2,b,{},{}"
+        params = [{"a": "b"}, foreign.id,{"c": "d"}, foreign_2.id]
+
+        with connection.cursor() as cursor:
+            cursor.copy(
+                "COPY test_project_testcomplexmodel (integer_field, string_field, json_field, test_foreign_id) FROM STDIN WITH CSV",
+                io_string.format(*params))
+            
+        # csv_io, params = models_to_csv_param_buffer([TestComplexModel(integer_field=1, string_field="a", json_field={}, test_foreign=foreign), TestComplexModel(integer_field=2, string_field="b", json_field={"c": "d"}, test_foreign=foreign_2)], ["integer_field", "string_field", "json_field", "test_foreign_id"], connection)
