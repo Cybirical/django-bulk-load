@@ -6,8 +6,9 @@ from django.db import connections, router, transaction
 from django.db.backends.base.base import BaseDatabaseWrapper
 from django.db.backends.utils import CursorWrapper
 from django.db.models import AutoField, Model, Field
-from psycopg2.extras import execute_values
 from psycopg2.sql import Composable, SQL
+from psycopg import sql
+from psycopg.sql import SQL, Composable, Identifier
 
 from .django import (
     django_field_to_query_value,
@@ -18,6 +19,7 @@ from .django import (
     models_to_tsv_buffer,
     records_to_models,
 )
+
 from .queries import (
     add_returning,
     create_temp_table,
@@ -27,7 +29,6 @@ from .queries import (
     generate_select_latest,
     generate_select_query,
     generate_update_query,
-    generate_values_select_query,
     copy_query
 )
 from .utils import generate_table_name
@@ -58,11 +59,13 @@ def create_temp_table_and_load(
     )
     tsv_buffer = models_to_tsv_buffer(models, fields, connection=connection)
     cursor.execute(temp_table_query)
-    cursor.copy_expert(
+    with cursor.copy(
         copy_query(table_name),
-        tsv_buffer,
-    )
+    ) as copy_cursor:
+        copy_cursor.write(tsv_buffer)
 
+    # sql to print out the contents of the temp table
+    cursor.execute(f"SELECT * FROM {table_name}")
     return table_name
 
 
@@ -552,19 +555,49 @@ def bulk_select_model_dicts(
                 )
             filter_data = filter_data_transformed
 
-        sql = generate_values_select_query(
-            table_name=table_name,
-            select_fields=select_fields,
-            filter_fields=filter_fields,
-            select_for_update=select_for_update
-        )
-        sql_string = sql.as_string(cursor.connection)
 
         logger.info(
             "Starting selecting models",
             extra=dict(query_dict_count=len(filter_data), table_name=table_name),
         )
-        execute_values(cursor, sql_string, filter_data, page_size=len(filter_data))
+
+        select_fields_sql = SQL(", ").join(
+            [Identifier(field.column) for field in select_fields]
+        )
+
+        filter_fields_sql = SQL(", ").join(
+            [Identifier(field.column) for field in filter_fields]
+        )
+
+        for_update = SQL("")
+        if select_for_update:
+            for_update = SQL(" FOR UPDATE")
+
+        sql_composed = SQL(
+            "SELECT {select_fields_sql} from {table_name} where ({filter_fields_sql}) IN (VALUES %s){for_update}"
+        ).format(
+            table_name=Identifier(table_name),
+            select_fields_sql=select_fields_sql,
+            filter_fields_sql=filter_fields_sql,
+            for_update=for_update,
+        )
+
+        
+        sql_composed = sql.Composed(
+            [sql.SQL("SELECT {select_fields_sql} from {table_name} where ({filter_fields_sql}) IN (").format(
+                    table_name=Identifier(table_name),
+                    select_fields_sql=select_fields_sql,
+                    filter_fields_sql=filter_fields_sql,
+                
+        ), sql.SQL('VALUES '), 
+            sql.SQL(",").join(
+                sql.SQL("({})").format(sql.SQL(',').join(sql.Placeholder() 
+                * len(filter_data[0]))) * len(filter_data)), 
+            sql.SQL("){for_update}").format(for_update=for_update)])
+        
+        sql_string = sql_composed.as_string(cursor.connection)
+        # execute_values(cursor, sql_string, filter_data, page_size=len(filter_data))
+        cursor.execute(sql_string, [y for x in filter_data for y in x]) # TODO: does accessing only the first element work?
         columns = [col[0] for col in cursor.description]
 
         # Map columns to fields so we can later correctly interpret column values
