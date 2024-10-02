@@ -1,3 +1,4 @@
+import json
 from django.db import models
 from uuid import uuid4
 
@@ -15,6 +16,12 @@ class TestComplexModel(models.Model):
         TestForeignKeyModel, on_delete=models.PROTECT, null=True
     )
     binary_field = models.BinaryField(null=True)
+
+    def __save__(self, *args, **kwargs):
+        # normalize the json field if a dict is passed in into a json object
+        if isinstance(self.json_field, dict):
+            self.json_field = json.dumps(self.json_field)
+        super().save(*args, **kwargs)
 
 
 

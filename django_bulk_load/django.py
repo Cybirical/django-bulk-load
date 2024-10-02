@@ -1,5 +1,6 @@
 import base64
 import csv
+import json
 import os
 from io import StringIO
 from typing import Any, Iterable, List, NamedTuple, Optional, Tuple, Type
@@ -7,7 +8,7 @@ from typing import Any, Iterable, List, NamedTuple, Optional, Tuple, Type
 from django.db import models
 from django.db.backends.base.base import BaseDatabaseWrapper
 from django.db.models.options import Options
-from psycopg2.extras import Json
+from psycopg.types.json import Jsonb
 
 from .utils import NULL_CHARACTER
 
@@ -65,8 +66,7 @@ def models_to_tsv_buffer(
     connection: BaseDatabaseWrapper,
     django_field_to_value=_default_model_to_value,
 ) -> StringIO:
-    buffer = StringIO()
-    tsv_writer = csv.writer(buffer, delimiter="\t", lineterminator="\n")
+    buffer = ""
     for obj in models:
         row = []
         for include_field in include_fields:
@@ -77,12 +77,15 @@ def models_to_tsv_buffer(
                 raise ValueError("Binary data is not supported in bulk operations")
             elif field_val is None:
                 row.append(NULL_CHARACTER)
-            elif isinstance(field_val, Json):
-                row.append(field_val.dumps(field_val.adapted))
+            elif isinstance(field_val, Jsonb):
+                field_val = include_field.pre_save(obj, add=obj._state.adding)
+                json_string_2 = json.dumps(field_val)
+                escaped_string_2 = json_string_2.replace('"', '""')
+                csv_safe_json_2 = f"\"{escaped_string_2}\""
+                row.append(csv_safe_json_2)
             else:
                 row.append(str(field_val))
-        tsv_writer.writerow(row)
-    buffer.seek(0)
+        buffer += "\t".join(row) + "\n"
     return buffer
 
 

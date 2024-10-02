@@ -623,7 +623,7 @@ class TransactionTests(TransactionTestCase):
         formatted_string = io_string.format(*params)
 
         with connection.cursor() as cursor:
-            with cursor.copy("COPY test_project_testcomplexmodel (id, integer_field, string_field, json_field, test_foreign_id) FROM STDIN WITH CSV DELIMITER '\t'") as writer:
+            with cursor.copy("COPY test_project_testcomplexmodel (id, integer_field, string_field, json_field, test_foreign_id) FROM STDIN NULL '\\N' DELIMITER '\t' CSV") as writer:
                 writer.write(formatted_string)
 
         # query the database to ensure the data was copied correctly
