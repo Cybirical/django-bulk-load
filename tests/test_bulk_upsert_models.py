@@ -4,7 +4,6 @@ from django.db import connection
 
 from django.test import TestCase, TransactionTestCase
 from django_bulk_load import bulk_upsert_models, generate_greater_than_condition
-from django_bulk_load.django import models_to_csv_param_buffer
 from .test_project.models import (
     TestComplexModel,
     TestForeignKeyModel,

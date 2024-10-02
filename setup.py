@@ -24,9 +24,10 @@ setuptools.setup(
     packages=setuptools.find_packages(
         exclude=["*.tests", "*.tests.*", "tests.*", "tests"]
     ),
-    python_requires=">=3.6",
+    python_requires=">=3.9",
     install_requires=[
-        "django>=2.2",
+        "django>=5.1",
+        "psycopg>=3.2.2",
         "psycopg2>=2.8.6"
     ],
     extras_require={

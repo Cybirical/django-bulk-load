@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
+import json
 
-from django.db import transaction, connection, connections
+from django.db import transaction, connection, connections, router
 from django.test import TransactionTestCase
 from django_bulk_load import bulk_select_model_dicts
 from .test_project.models import (
@@ -17,7 +18,7 @@ class E2ETestBulkSelectModelDictsNoTransaction(TransactionTestCase):
         :return:
         """
         saved_model1 = TestComplexModel(
-            integer_field=1, json_field=dict(a="b"), string_field="hello1"
+            integer_field=1, json_field=json.dumps({"a": "b"}), string_field="hello1"
         )
         saved_model1.save()
 
