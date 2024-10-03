@@ -3,7 +3,7 @@ import setuptools
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-__version__ = "1.4.5"
+__version__ = "1.4.6"
 
 setuptools.setup(
     name="cyb-django-bulk-load",
