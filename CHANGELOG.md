@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## v1.4.5 (2024-10-3)
+removes psycopg2 and adds psycopg (v3) to be compatible with Django 5.1+ moving forward
 
 
 ## v1.4.3 (2023-11-17)

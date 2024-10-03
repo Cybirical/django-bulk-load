@@ -195,3 +195,9 @@ You will need Docker installed and run the following command
 ```
 ./test.sh
 ```
+
+### publish a new version of this package to CodeArtifact
+```
+sudo chmod +x publish.sh
+./publish.sh
+```

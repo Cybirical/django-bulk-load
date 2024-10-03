@@ -3,18 +3,18 @@ import setuptools
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-__version__ = "1.4.3"
+__version__ = "1.4.5"
 
 setuptools.setup(
-    name="django-bulk-load",
+    name="cyb-django-bulk-load",
     version=__version__,
     author="Cedar",
     author_email="support@cedar.com",
     license="MIT",
-    description="Bulk load Django models",
+    description="Bulk load Django models [Cybirical Fork]",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/cedar-team/django-bulk-load",
+    url="https://github.com/Cybirical/django-bulk-load",
     project_urls={},
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -28,7 +28,6 @@ setuptools.setup(
     install_requires=[
         "django>=5.1",
         "psycopg>=3.2.2",
-        "psycopg2>=2.8.6"
     ],
     extras_require={
         'test': []
