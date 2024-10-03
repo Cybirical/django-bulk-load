@@ -57,7 +57,7 @@ def records_to_models(
 
 def _default_model_to_value(model, field, connection):
     field_val = field.pre_save(model, add=model._state.adding)
-    return field.get_db_prep_save(field_val, connection=connection)
+    return field.get_prep_value(field_val)
 
 
 def models_to_tsv_buffer(
@@ -71,14 +71,13 @@ def models_to_tsv_buffer(
         row = []
         for include_field in include_fields:
             field_val = django_field_to_value(obj, include_field, connection)
-            if isinstance(field_val, connection.Database.Binary):
+            if isinstance(field_val, bytes):
                 # We can migrate to psychopg 3 which has more advanced copy commands for binary once we upgrade
                 # Django to 4.1+
                 raise ValueError("Binary data is not supported in bulk operations")
             elif field_val is None:
                 row.append(NULL_CHARACTER)
-            elif isinstance(field_val, Jsonb):
-                field_val = include_field.pre_save(obj, add=obj._state.adding)
+            elif isinstance(field_val, dict):
                 json_string_2 = json.dumps(field_val)
                 escaped_string_2 = json_string_2.replace('"', '""')
                 csv_safe_json_2 = f"\"{escaped_string_2}\""

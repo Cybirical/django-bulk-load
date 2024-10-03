@@ -1,10 +1,14 @@
 import json
-from django.db import models
+from django.contrib.gis.db import models
 from uuid import uuid4
 
 
 class TestForeignKeyModel(models.Model):
     pass
+
+class TestGISModel(models.Model):
+    integer_field = models.IntegerField(null=True)
+    location = models.PointField()
 
 
 class TestComplexModel(models.Model):

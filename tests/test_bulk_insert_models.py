@@ -6,8 +6,10 @@ from django.db import IntegrityError
 from .test_project.models import (
     TestComplexModel,
     TestForeignKeyModel,
+    TestGISModel,
 )
 
+from django.contrib.gis.geos import Point
 
 class E2ETestBulkInsertModelsTest(TestCase):
     def test_empty_upsert(self):
@@ -48,6 +50,19 @@ class E2ETestBulkInsertModelsTest(TestCase):
         saved_model = TestComplexModel.objects.get()
         self.assertEqual(saved_model.id, 10)
         for attr in ["id", "integer_field", "string_field", "json_field", "test_foreign_id"]:
+            self.assertEqual(getattr(saved_model, attr), getattr(unsaved_model, attr))
+
+    def test_pointfield_single_insert_new_with_pk(self):
+        unsaved_model = TestGISModel(
+            id=10,
+            integer_field=123,
+            location=Point(y=30, x=90),
+        )
+        bulk_insert_models([unsaved_model])
+
+        saved_model = TestGISModel.objects.get()
+        self.assertEqual(saved_model.id, 10)
+        for attr in ["id", "integer_field", "location"]:
             self.assertEqual(getattr(saved_model, attr), getattr(unsaved_model, attr))
 
     def test_duplicate_insert_fails(self):
