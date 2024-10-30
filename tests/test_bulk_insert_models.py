@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import string
 
 from django.test import TestCase
 from django_bulk_load import bulk_insert_models
@@ -10,6 +11,7 @@ from .test_project.models import (
 )
 
 from django.contrib.gis.geos import Point
+
 
 class E2ETestBulkInsertModelsTest(TestCase):
     def test_empty_upsert(self):
@@ -32,6 +34,31 @@ class E2ETestBulkInsertModelsTest(TestCase):
         self.assertIsNotNone(saved_model.id)
         for attr in ["integer_field", "string_field", "json_field", "test_foreign_id"]:
             self.assertEqual(getattr(saved_model, attr), getattr(unsaved_model, attr))
+
+    def test_inserts_with_all_special_characters_tested(self):
+        # This test is to ensure that all special characters are handled correctly
+        # when inserting into the database
+        # Added 2024-10-30. Prior to this date, the package was having trouble with
+        # certain special characters.
+
+        foreign = TestForeignKeyModel()
+        foreign.save()
+
+        for special_character in string.punctuation:
+            unsaved_model = TestComplexModel(
+                integer_field=123,
+                string_field=special_character,
+                json_field=dict(fun="run"),
+                datetime_field=datetime(2018, 1, 5, 3, 4, 5, tzinfo=timezone.utc),
+                test_foreign=foreign,
+            )
+            bulk_insert_models([unsaved_model])
+
+            saved_model = TestComplexModel.objects.get(string_field=special_character)
+            self.assertIsNotNone(saved_model.id)
+            for attr in ["integer_field", "string_field", "json_field", "test_foreign_id"]:
+                self.assertEqual(getattr(saved_model, attr), getattr(unsaved_model, attr))
+            self.assertEqual(saved_model.string_field, unsaved_model.string_field)
 
     def test_single_insert_new_with_pk(self):
         foreign = TestForeignKeyModel()
@@ -130,8 +157,9 @@ class E2ETestBulkInsertModelsTest(TestCase):
         for saved_model in TestComplexModel.objects.all():
             self.assertIsNotNone(saved_model.id)
             for attr in ["integer_field", "string_field", "json_field", "test_foreign_id"]:
-                self.assertEqual(getattr(saved_model, attr), getattr(unsaved_by_integer_field[saved_model.integer_field], attr))
-
+                self.assertEqual(
+                    getattr(saved_model, attr), getattr(unsaved_by_integer_field[saved_model.integer_field], attr)
+                )
 
     def test_return_models(self):
         foreign = TestForeignKeyModel()
@@ -160,8 +188,9 @@ class E2ETestBulkInsertModelsTest(TestCase):
         for saved_model in saved_models:
             self.assertIsNotNone(saved_model.id)
             for attr in ["integer_field", "string_field", "json_field", "test_foreign_id"]:
-                self.assertEqual(getattr(saved_model, attr),
-                                 getattr(unsaved_by_integer_field[saved_model.integer_field], attr))
+                self.assertEqual(
+                    getattr(saved_model, attr), getattr(unsaved_by_integer_field[saved_model.integer_field], attr)
+                )
 
     def test_errors_when_mix_of_pk_and_not(self):
         unsaved_model_with_pk = TestComplexModel(
@@ -179,10 +208,7 @@ class E2ETestBulkInsertModelsTest(TestCase):
         )
 
         with self.assertRaises(ValueError):
-            bulk_insert_models([
-                unsaved_model_with_pk,
-                unsaved_model_without_pk
-            ])
+            bulk_insert_models([unsaved_model_with_pk, unsaved_model_without_pk])
 
     def test_errors_when_uploading_binary(self):
         unsaved_model1 = TestComplexModel(
@@ -193,7 +219,4 @@ class E2ETestBulkInsertModelsTest(TestCase):
         )
 
         with self.assertRaises(ValueError):
-            bulk_insert_models([
-                unsaved_model1,
-                unsaved_model2
-            ])
+            bulk_insert_models([unsaved_model1, unsaved_model2])

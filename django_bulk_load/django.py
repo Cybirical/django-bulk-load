@@ -31,9 +31,7 @@ def records_to_models(
         field.column: DjangoFieldInfo(
             field_name=field.attname,
             deserializer=(
-                field.from_db_value
-                if hasattr(field, "from_db_value")
-                else lambda value, expression, connection: value
+                field.from_db_value if hasattr(field, "from_db_value") else lambda value, expression, connection: value
             ),
         )
         for field in get_model_fields(model_class._meta, include_auto_fields=True)
@@ -77,20 +75,18 @@ def models_to_tsv_buffer(
                 raise ValueError("Binary data is not supported in bulk operations")
             elif field_val is None:
                 row.append(NULL_CHARACTER)
-            elif isinstance(field_val, dict):
-                json_string_2 = json.dumps(field_val)
-                escaped_string_2 = json_string_2.replace('"', '""')
-                csv_safe_json_2 = f"\"{escaped_string_2}\""
-                row.append(csv_safe_json_2)
             else:
-                row.append(str(field_val))
+                if isinstance(field_val, dict):
+                    field_val = json.dumps(field_val)
+                escaped_string_2 = str(field_val).replace('"', '""')
+                csv_safe_field_value_2 = f'"{escaped_string_2}"'
+                row.append(csv_safe_field_value_2)
+
         buffer += "\t".join(row) + "\n"
     return buffer
 
 
-def get_model_fields(
-    model_meta: Options, include_auto_fields=False
-) -> List[models.Field]:
+def get_model_fields(model_meta: Options, include_auto_fields=False) -> List[models.Field]:
     fields = []
     for field in model_meta.get_fields():
         if (
@@ -103,9 +99,7 @@ def get_model_fields(
     return fields
 
 
-def get_fields_from_names(
-    field_names: Iterable[str], model_meta: Options
-) -> List[models.Field]:
+def get_fields_from_names(field_names: Iterable[str], model_meta: Options) -> List[models.Field]:
     return [model_meta.get_field(field_name) for field_name in field_names]
 
 
@@ -120,9 +114,7 @@ def get_fields_and_names(
     return fields, [field.name for field in fields]
 
 
-def get_pk_fields(
-    pk_field_names: Iterable[str], model_meta: Options
-) -> List[models.Field]:
+def get_pk_fields(pk_field_names: Iterable[str], model_meta: Options) -> List[models.Field]:
     if pk_field_names:
         return get_fields_from_names(pk_field_names, model_meta)
 
