@@ -6,9 +6,17 @@ from uuid import uuid4
 class TestForeignKeyModel(models.Model):
     pass
 
+
 class TestGISModel(models.Model):
     integer_field = models.IntegerField(null=True)
     location = models.PointField()
+
+
+class TestGeneratedFieldModel(models.Model):
+    integer_field = models.IntegerField()
+    generated_field = models.GeneratedField(
+        expression=models.F("integer_field") * 2, output_field=models.IntegerField(), db_persist=True
+    )
 
 
 class TestComplexModel(models.Model):
@@ -16,9 +24,7 @@ class TestComplexModel(models.Model):
     string_field = models.TextField(null=True)
     datetime_field = models.DateTimeField(null=True)
     json_field = models.JSONField(null=True)
-    test_foreign = models.ForeignKey(
-        TestForeignKeyModel, on_delete=models.PROTECT, null=True
-    )
+    test_foreign = models.ForeignKey(TestForeignKeyModel, on_delete=models.PROTECT, null=True)
     binary_field = models.BinaryField(null=True)
 
     def __save__(self, *args, **kwargs):
@@ -26,7 +32,6 @@ class TestComplexModel(models.Model):
         if isinstance(self.json_field, dict):
             self.json_field = json.dumps(self.json_field)
         super().save(*args, **kwargs)
-
 
 
 class TestUUIDModel(models.Model):

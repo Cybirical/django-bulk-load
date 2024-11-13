@@ -93,6 +93,7 @@ def get_model_fields(model_meta: Options, include_auto_fields=False) -> List[mod
             getattr(field, "column", None)
             and (include_auto_fields or not isinstance(field, models.AutoField))
             and not isinstance(field, models.ManyToManyField)
+            and not isinstance(field, models.GeneratedField)
         ):
             fields.append(field)
 

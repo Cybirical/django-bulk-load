@@ -4,11 +4,7 @@ from django.db import connection
 
 from django.test import TestCase, TransactionTestCase
 from django_bulk_load import bulk_upsert_models, generate_greater_than_condition
-from .test_project.models import (
-    TestComplexModel,
-    TestForeignKeyModel,
-    TestUUIDModel
-)
+from .test_project.models import TestComplexModel, TestForeignKeyModel, TestUUIDModel, TestGeneratedFieldModel
 
 
 class E2ETestBulkUpsertModels(TestCase):
@@ -33,6 +29,20 @@ class E2ETestBulkUpsertModels(TestCase):
         for attr in ["integer_field", "string_field", "json_field", "test_foreign_id"]:
             self.assertEqual(getattr(saved_model, attr), getattr(unsaved_model, attr))
 
+    def test_generated_field_upsert_new(self):
+        model = TestGeneratedFieldModel(integer_field=1)
+        bulk_upsert_models([model])
+        saved_model = TestGeneratedFieldModel.objects.get()
+        self.assertEqual(saved_model.generated_field, 2)
+
+    def test_generated_field_upsert_change(self):
+        model = TestGeneratedFieldModel(integer_field=1)
+        model.save()
+        model.integer_field = 2
+        bulk_upsert_models([model])
+        saved_model = TestGeneratedFieldModel.objects.get()
+        self.assertEqual(saved_model.generated_field, 4)
+
     def test_integer_field_change(self):
         model1 = TestComplexModel(integer_field=1)
         model1.save()
@@ -50,9 +60,7 @@ class E2ETestBulkUpsertModels(TestCase):
         self.assertEqual(saved_model.string_field, "world")
 
     def test_datetime_field_change(self):
-        model1 = TestComplexModel(
-            datetime_field=datetime(2018, 1, 5, 3, 4, 5, tzinfo=timezone.utc)
-        )
+        model1 = TestComplexModel(datetime_field=datetime(2018, 1, 5, 3, 4, 5, tzinfo=timezone.utc))
         model1.save()
         model1.datetime_field = datetime(2012, 12, 10, 22, 8, 9, tzinfo=timezone.utc)
         bulk_upsert_models([model1])
@@ -121,9 +129,7 @@ class E2ETestBulkUpsertModels(TestCase):
                 "datetime_field",
                 "test_foreign_id",
             ]:
-                self.assertEqual(
-                    getattr(saved_models[i], attr), getattr(unsaved_models[i], attr)
-                )
+                self.assertEqual(getattr(saved_models[i], attr), getattr(unsaved_models[i], attr))
 
     def test_upsert_saved_model_changes(self):
         foreign = TestForeignKeyModel()
@@ -161,9 +167,7 @@ class E2ETestBulkUpsertModels(TestCase):
         self.assertEqual(db_model.integer_field, 456)
         self.assertEqual(db_model.string_field, "fun")
         self.assertEqual(db_model.json_field, dict(test="val"))
-        self.assertEqual(
-            db_model.datetime_field, datetime(2018, 1, 5, 3, 4, 5, tzinfo=timezone.utc)
-        )
+        self.assertEqual(db_model.datetime_field, datetime(2018, 1, 5, 3, 4, 5, tzinfo=timezone.utc))
         self.assertEqual(db_model.test_foreign.id, foreign2.id)
 
     def test_upsert_return_models(self):
@@ -247,8 +251,6 @@ class E2ETestBulkUpsertModels(TestCase):
         self.assertIsNotNone(post_unsaved_model.created_on)
         self.assertIsNotNone(post_saved_model.created_on)
         self.assertLess(old_modified_on, post_saved_model.modified_on)
-
-
 
     def test_upsert_insert_only_fields(self):
         saved_model_1 = TestComplexModel(integer_field=1, string_field="a")
@@ -461,9 +463,7 @@ class E2ETestBulkUpsertModels(TestCase):
         # Should NOT update model1 because it has a value
         model3 = TestComplexModel(integer_field=4)
 
-        bulk_upsert_models(
-            [model1, model2, model3], update_if_null_field_names=["integer_field"]
-        )
+        bulk_upsert_models([model1, model2, model3], update_if_null_field_names=["integer_field"])
 
         # Make sure all models were inserted correctly
         self.assertEqual(TestComplexModel.objects.count(), 3)
@@ -508,9 +508,7 @@ class E2ETestBulkUpsertModels(TestCase):
         model1.datetime_field = datetime(2020, 1, 5, 3, 4, 5, tzinfo=timezone.utc)
 
         # Should update string_field and datetime_field
-        model2 = TestComplexModel(
-            integer_field=2, string_field="c", datetime_field=None
-        )
+        model2 = TestComplexModel(integer_field=2, string_field="c", datetime_field=None)
         model2.save()
         model2.integer_field = 3
         model2.string_field = None
@@ -564,13 +562,10 @@ class E2ETestBulkUpsertModels(TestCase):
         model1.integer_field = 5
         model1.string_field = "b"
 
-        model2 = TestComplexModel(
-            integer_field=3, string_field="c"
-        )
+        model2 = TestComplexModel(integer_field=3, string_field="c")
         model2.save()
         model2.integer_field = 2
         model2.string_field = "c"
-
 
         def update_where(fields, source_table_name, destination_table_name):
             """
@@ -584,10 +579,7 @@ class E2ETestBulkUpsertModels(TestCase):
                 field=TestComplexModel._meta.get_field("integer_field"),
             )
 
-        bulk_upsert_models(
-            [model1, model2],
-            update_where=update_where
-        )
+        bulk_upsert_models([model1, model2], update_where=update_where)
 
         # First model should be updated because 5 > 1
         saved_model1 = TestComplexModel.objects.get(integer_field=5)
@@ -597,6 +589,7 @@ class E2ETestBulkUpsertModels(TestCase):
         saved_model2 = TestComplexModel.objects.get(integer_field=3)
         self.assertEqual(saved_model2.string_field, "c")
 
+
 class TransactionTests(TransactionTestCase):
     def test_copy_from_with_jsonfield_works_as_expected(self):
         # perform a COPY from state with a JSONField
@@ -605,31 +598,30 @@ class TransactionTests(TransactionTestCase):
         data = {"a": "b"}
         json_string = json.dumps(data)
         escaped_string = json_string.replace('"', '""')
-        csv_safe_json = f"\"{escaped_string}\""
+        csv_safe_json = f'"{escaped_string}"'
 
         data_2 = {"c": "d"}
         json_string_2 = json.dumps(data_2)
         escaped_string_2 = json_string_2.replace('"', '""')
-        csv_safe_json_2 = f"\"{escaped_string_2}\""
+        csv_safe_json_2 = f'"{escaped_string_2}"'
         io_string = "1\t1\ta\t{}\t{}\n2\t2\tb\t{}\t{}"
-        params = [
-            csv_safe_json,
-            foreign.id,
-            csv_safe_json_2,
-            foreign_2.id
-        ]
+        params = [csv_safe_json, foreign.id, csv_safe_json_2, foreign_2.id]
 
         formatted_string = io_string.format(*params)
 
         with connection.cursor() as cursor:
-            with cursor.copy("COPY test_project_testcomplexmodel (id, integer_field, string_field, json_field, test_foreign_id) FROM STDIN NULL '\\N' DELIMITER '\t' CSV") as writer:
+            with cursor.copy(
+                "COPY test_project_testcomplexmodel (id, integer_field, string_field, json_field, test_foreign_id) FROM STDIN NULL '\\N' DELIMITER '\t' CSV"
+            ) as writer:
                 writer.write(formatted_string)
 
         # query the database to ensure the data was copied correctly
         with connection.cursor() as cursor:
-            cursor.execute("SELECT id, integer_field, string_field, json_field, test_foreign_id FROM test_project_testcomplexmodel")
+            cursor.execute(
+                "SELECT id, integer_field, string_field, json_field, test_foreign_id FROM test_project_testcomplexmodel"
+            )
             result = cursor.fetchall()
-            self.assertEqual(result, [
-                (1, 1, "a", json.dumps({'a': 'b'}), foreign.id),
-                (2, 2, "b", json.dumps({'c': 'd'}), foreign_2.id)
-            ])
+            self.assertEqual(
+                result,
+                [(1, 1, "a", json.dumps({"a": "b"}), foreign.id), (2, 2, "b", json.dumps({"c": "d"}), foreign_2.id)],
+            )

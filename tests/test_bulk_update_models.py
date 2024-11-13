@@ -5,6 +5,7 @@ from django_bulk_load import bulk_update_models, generate_greater_than_condition
 from .test_project.models import (
     TestComplexModel,
     TestForeignKeyModel,
+    TestGeneratedFieldModel,
 )
 
 
@@ -26,9 +27,7 @@ class E2ETestBulkUpdateModels(TestCase):
         self.assertEqual(saved_model.string_field, "world")
 
     def test_datetime_field_change(self):
-        model1 = TestComplexModel(
-            datetime_field=datetime(2018, 1, 5, 3, 4, 5, tzinfo=timezone.utc)
-        )
+        model1 = TestComplexModel(datetime_field=datetime(2018, 1, 5, 3, 4, 5, tzinfo=timezone.utc))
         model1.save()
         model1.datetime_field = datetime(2012, 12, 10, 22, 8, 9, tzinfo=timezone.utc)
         bulk_update_models([model1])
@@ -107,6 +106,14 @@ class E2ETestBulkUpdateModels(TestCase):
             datetime(2018, 1, 5, 3, 4, 5, tzinfo=timezone.utc),
         )
 
+    def test_update_generated_field_has_no_change(self):
+        model = TestGeneratedFieldModel(integer_field=1)
+        model.save()
+        model.generated_field = 4
+        bulk_update_models([model])
+        saved_model = TestGeneratedFieldModel.objects.get()
+        self.assertEqual(saved_model.generated_field, 2)
+
     def test_update_on_changed_no_change(self):
         foreign1 = TestForeignKeyModel()
         foreign1.save()
@@ -120,9 +127,7 @@ class E2ETestBulkUpdateModels(TestCase):
         model1.save()
         model1.integer_field = 2
         model1.datetime_field = datetime(1999, 1, 5, 3, 4, 5, tzinfo=timezone.utc)
-        bulk_update_models(
-            [model1], model_changed_field_names=["integer_field", "datetime_field"]
-        )
+        bulk_update_models([model1], model_changed_field_names=["integer_field", "datetime_field"])
         saved_model = TestComplexModel.objects.get()
 
         # Should keep all fields unchanged, since ignore field only one changed
@@ -149,9 +154,7 @@ class E2ETestBulkUpdateModels(TestCase):
         model1.integer_field = 2
         model1.string_field = "world"
         model1.datetime_field = datetime(1999, 1, 5, 3, 4, 5, tzinfo=timezone.utc)
-        bulk_update_models(
-            [model1], model_changed_field_names=["integer_field", "datetime_field"]
-        )
+        bulk_update_models([model1], model_changed_field_names=["integer_field", "datetime_field"])
         saved_model = TestComplexModel.objects.get()
 
         # Should change string_field, integer_field and datetime_field since string_field changed
@@ -165,17 +168,11 @@ class E2ETestBulkUpdateModels(TestCase):
         self.assertEqual(saved_model.test_foreign_id, foreign1.id)
 
     def test_using_custom_pk_columns(self):
-        model1 = TestComplexModel(
-            integer_field=2, string_field="hello", json_field=dict(a="b")
-        )
+        model1 = TestComplexModel(integer_field=2, string_field="hello", json_field=dict(a="b"))
         model1.save()
-        model2 = TestComplexModel(
-            integer_field=2, string_field="world", json_field=dict(c="d")
-        )
+        model2 = TestComplexModel(integer_field=2, string_field="world", json_field=dict(c="d"))
         model2.save()
-        model3 = TestComplexModel(
-            integer_field=3, string_field="world", json_field=dict(e="f")
-        )
+        model3 = TestComplexModel(integer_field=3, string_field="world", json_field=dict(e="f"))
         model3.save()
 
         # Change 1 field on model2
@@ -203,23 +200,17 @@ class E2ETestBulkUpdateModels(TestCase):
         self.assertEqual(saved_model3.json_field, dict(e="f"))
 
     def test_multiple_updates(self):
-        model1 = TestComplexModel(
-            integer_field=1, string_field="hello", json_field=dict(a="b")
-        )
+        model1 = TestComplexModel(integer_field=1, string_field="hello", json_field=dict(a="b"))
         model1.save()
         model1.string_field = "hello_updated"
         model1.json_field = dict(a_changed="b")
 
-        model2 = TestComplexModel(
-            integer_field=2, string_field="world", json_field=dict(c="d")
-        )
+        model2 = TestComplexModel(integer_field=2, string_field="world", json_field=dict(c="d"))
         model2.save()
         model2.string_field = "world_updated"
         model2.json_field = dict(c_changed="d")
 
-        model3 = TestComplexModel(
-            integer_field=3, string_field="text", json_field=dict(e="f")
-        )
+        model3 = TestComplexModel(integer_field=3, string_field="text", json_field=dict(e="f"))
         model3.save()
         model3.string_field = "text_updated"
         model3.json_field = dict(e_changed="f")
@@ -262,9 +253,7 @@ class E2ETestBulkUpdateModels(TestCase):
         model3.save()
         model3.integer_field = None
 
-        bulk_update_models(
-            [model1, model2, model3], update_if_null_field_names=["integer_field"]
-        )
+        bulk_update_models([model1, model2, model3], update_if_null_field_names=["integer_field"])
 
         self.assertEqual(TestComplexModel.objects.count(), 3)
 
@@ -286,9 +275,7 @@ class E2ETestBulkUpdateModels(TestCase):
         model1.datetime_field = datetime(2020, 1, 5, 3, 4, 5, tzinfo=timezone.utc)
 
         # Should only update datetime_field
-        model2 = TestComplexModel(
-            integer_field=2, string_field="c", datetime_field=None
-        )
+        model2 = TestComplexModel(integer_field=2, string_field="c", datetime_field=None)
         model2.save()
         model2.integer_field = 3
         model2.string_field = None
@@ -339,13 +326,10 @@ class E2ETestBulkUpdateModels(TestCase):
         model1.integer_field = 5
         model1.string_field = "b"
 
-        model2 = TestComplexModel(
-            integer_field=3, string_field="c"
-        )
+        model2 = TestComplexModel(integer_field=3, string_field="c")
         model2.save()
         model2.integer_field = 2
         model2.string_field = "c"
-
 
         def update_where(fields, source_table_name, destination_table_name):
             """
@@ -360,9 +344,7 @@ class E2ETestBulkUpdateModels(TestCase):
             )
 
         bulk_update_models(
-            [model1, model2],
-            update_field_names=["integer_field", "string_field"],
-            update_where=update_where
+            [model1, model2], update_field_names=["integer_field", "string_field"], update_where=update_where
         )
 
         # First model should be updated because 5 > 1
