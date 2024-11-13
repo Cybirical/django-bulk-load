@@ -8,6 +8,7 @@ from .test_project.models import (
     TestComplexModel,
     TestForeignKeyModel,
     TestGISModel,
+    TestGeneratedFieldModel,
 )
 
 from django.contrib.gis.geos import Point
@@ -160,6 +161,14 @@ class E2ETestBulkInsertModelsTest(TestCase):
                 self.assertEqual(
                     getattr(saved_model, attr), getattr(unsaved_by_integer_field[saved_model.integer_field], attr)
                 )
+
+    def test_generate_field_model_ignores_generated_field(self):
+        model = TestGeneratedFieldModel(integer_field=1, generated_field=4)
+        bulk_insert_models([model])
+
+        saved_model = TestGeneratedFieldModel.objects.get()
+        self.assertEqual(saved_model.integer_field, 1)
+        self.assertEqual(saved_model.generated_field, 2)
 
     def test_return_models(self):
         foreign = TestForeignKeyModel()
